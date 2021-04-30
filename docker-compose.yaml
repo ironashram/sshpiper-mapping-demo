@@ -1,0 +1,46 @@
+version: '3'
+services:
+  sshpiper-database:
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=sshpiper
+      - MYSQL_DATABASE=sshpiper
+    networks:
+      sshpiper_net:
+        ipv4_address: 172.29.2.2  
+  sshpiperd:
+    image: quay.io/ironashram/sshpiperd:latest
+    volumes:
+      - ./test/etc/sshpiper/sshpiperd.ini:/etc/sshpiperd/sshpiperd.ini
+      - ./test/etc/.ssh/id_rsa:/etc/.ssh/id_rsa
+    environment:
+      - "SSHPIPERD_CONFIG=/etc/sshpiperd/sshpiperd.ini"
+      - "SSHPIPERD_DATABASE=172.29.2.2:3306"
+    ports:
+      - 2233:2233
+    networks:
+      sshpiper_net:
+        ipv4_address: 172.29.2.3
+    depends_on:
+      - sshpiper-database
+  customer-pod:
+    image: linuxserver/openssh-server:latest
+    environment:
+      - PUBLIC_KEY_FILE=/tmp/.ssh/id_rsa.pub
+      - USER_NAME=different_user
+      - SUDO_ACCESS=false
+      - PASSWORD_ACCESS=true
+    volumes:
+      - ./test/etc/.ssh/id_rsa.pub:/tmp/.ssh/id_rsa.pub
+    networks:
+      sshpiper_net:
+        ipv4_address: 172.29.2.4
+        
+
+
+networks:
+  sshpiper_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.29.2.0/24
